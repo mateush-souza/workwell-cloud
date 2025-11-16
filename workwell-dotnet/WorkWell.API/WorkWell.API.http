@@ -1,0 +1,6 @@
+@WorkWell.API_HostAddress = http://localhost:5286
+
+GET {{WorkWell.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

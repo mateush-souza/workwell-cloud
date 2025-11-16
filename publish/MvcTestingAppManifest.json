@@ -1,0 +1,6 @@
+{
+  "WorkWell.API, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~",
+  "WorkWell.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~",
+  "WorkWell.Domain, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~",
+  "WorkWell.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "~"
+}
