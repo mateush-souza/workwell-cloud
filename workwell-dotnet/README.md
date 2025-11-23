@@ -69,7 +69,7 @@ O burnout afeta milhões de profissionais globalmente, custando bilhões em prod
 - Rate Limiting por usuário/IP
 
 ### Persistência Multi-Banco
-- **Oracle Database**: Banco relacional principal com EF Core
+- **SQL Server**: Banco relacional principal com EF Core (migrado do Oracle)
 - **MongoDB**: Armazenamento de conversas e dados não estruturados
 - **Redis**: Cache distribuído para performance
 
@@ -88,7 +88,7 @@ O burnout afeta milhões de profissionais globalmente, custando bilhões em prod
 - **AutoMapper**: Mapeamento de objetos
 
 ### Banco de Dados
-- **Oracle Database 11g+**: Banco relacional principal
+- **SQL Server 2019+**: Banco relacional principal (Azure SQL Database compatível)
 - **MongoDB 4.4+**: Banco NoSQL para conversas
 - **Redis 6.0+**: Cache distribuído
 
@@ -255,7 +255,7 @@ workwell-dotnet/
 
 ### Software Necessário
 - .NET 8 SDK ou superior
-- Oracle Database 11g+ ou Oracle XE
+- SQL Server 2019+ ou Azure SQL Database
 - MongoDB 4.4+
 - Redis 6.0+
 - Visual Studio 2022 ou VS Code com extensão C#
@@ -295,7 +295,7 @@ docker build -t workwell-api .
 
 # Executar container
 docker run -p 8080:80 \
-  -e ConnectionStrings__OracleConnection="..." \
+  -e ConnectionStrings__SqlServerConnection="..." \
   -e ConnectionStrings__MongoDbConnection="..." \
   -e ConnectionStrings__RedisConnection="..." \
   -e Jwt__SecretKey="..." \
@@ -325,7 +325,7 @@ Configure as variáveis no arquivo `appsettings.json`:
 ```json
 {
   "ConnectionStrings": {
-    "OracleConnection": "User Id=YOUR_USER;Password=YOUR_PASSWORD;Data Source=localhost:1521/XE",
+    "SqlServerConnection": "Server=YOUR_SERVER;Database=WorkWellDb;User Id=YOUR_USER;Password=YOUR_PASSWORD;TrustServerCertificate=True;",
     "MongoDbConnection": "mongodb://localhost:27017",
     "RedisConnection": "localhost:6379"
   },
@@ -348,104 +348,43 @@ Configure as variáveis no arquivo `appsettings.json`:
 }
 ```
 
-### Configuração do Oracle Database
+### Configuração para Azure SQL Database
 
-Execute os scripts SQL para criar as tabelas:
+Para Azure SQL Database, use o seguinte formato de connection string:
 
-```sql
--- Empresas
-CREATE TABLE EMPRESAS (
-    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    NOME VARCHAR2(200) NOT NULL,
-    CNPJ VARCHAR2(14) NOT NULL UNIQUE,
-    SETOR VARCHAR2(100),
-    DATA_CADASTRO TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DATA_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DATA_ATUALIZACAO TIMESTAMP
-);
-
--- Departamentos
-CREATE TABLE DEPARTAMENTOS (
-    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    NOME VARCHAR2(150) NOT NULL,
-    DESCRICAO VARCHAR2(500),
-    EMPRESA_ID NUMBER NOT NULL,
-    DATA_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DATA_ATUALIZACAO TIMESTAMP,
-    CONSTRAINT FK_DEPT_EMPRESA FOREIGN KEY (EMPRESA_ID) REFERENCES EMPRESAS(ID)
-);
-
--- Usuarios
-CREATE TABLE USUARIOS (
-    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    NOME VARCHAR2(200) NOT NULL,
-    EMAIL VARCHAR2(200) NOT NULL UNIQUE,
-    SENHA_HASH VARCHAR2(500) NOT NULL,
-    EMPRESA_ID NUMBER NOT NULL,
-    DEPARTAMENTO_ID NUMBER,
-    CARGO VARCHAR2(100),
-    ROLE NUMBER DEFAULT 0,
-    ATIVO NUMBER(1) DEFAULT 1,
-    DATA_ULTIMO_ACESSO TIMESTAMP,
-    DATA_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DATA_ATUALIZACAO TIMESTAMP,
-    CONSTRAINT FK_USER_EMPRESA FOREIGN KEY (EMPRESA_ID) REFERENCES EMPRESAS(ID),
-    CONSTRAINT FK_USER_DEPT FOREIGN KEY (DEPARTAMENTO_ID) REFERENCES DEPARTAMENTOS(ID)
-);
-
--- Check-ins Diários
-CREATE TABLE CHECKINS_DIARIOS (
-    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    USUARIO_ID NUMBER NOT NULL,
-    DATA_CHECKIN TIMESTAMP NOT NULL,
-    NIVEL_STRESS NUMBER(2) NOT NULL CHECK (NIVEL_STRESS BETWEEN 1 AND 10),
-    HORAS_TRABALHADAS NUMBER(5,2) NOT NULL,
-    HORAS_SONO NUMBER(5,2),
-    SENTIMENTO VARCHAR2(50),
-    OBSERVACOES VARCHAR2(1000),
-    SCORE_BEMESTAR NUMBER(5,2),
-    DATA_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DATA_ATUALIZACAO TIMESTAMP,
-    CONSTRAINT FK_CHECKIN_USER FOREIGN KEY (USUARIO_ID) REFERENCES USUARIOS(ID)
-);
-
--- Métricas de Saúde
-CREATE TABLE METRICAS_SAUDE (
-    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    USUARIO_ID NUMBER NOT NULL,
-    DATA_REGISTRO TIMESTAMP NOT NULL,
-    QUALIDADE_SONO NUMBER(2) CHECK (QUALIDADE_SONO BETWEEN 1 AND 10),
-    MINUTOS_ATIVIDADE_FISICA NUMBER,
-    LITROS_AGUA NUMBER(4,2),
-    FREQUENCIA_CARDIACA NUMBER,
-    PASSOS_DIARIOS NUMBER,
-    PESO_KG NUMBER(6,2),
-    DATA_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DATA_ATUALIZACAO TIMESTAMP,
-    CONSTRAINT FK_METRICA_USER FOREIGN KEY (USUARIO_ID) REFERENCES USUARIOS(ID)
-);
-
--- Alertas de Burnout
-CREATE TABLE ALERTAS_BURNOUT (
-    ID NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    USUARIO_ID NUMBER NOT NULL,
-    DATA_ALERTA TIMESTAMP NOT NULL,
-    NIVEL_RISCO NUMBER(1) NOT NULL,
-    SCORE_RISCO NUMBER(5,2) NOT NULL,
-    DESCRICAO VARCHAR2(1000),
-    RECOMENDACOES CLOB,
-    LIDO NUMBER(1) DEFAULT 0,
-    DATA_LEITURA TIMESTAMP,
-    DATA_CRIACAO TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DATA_ATUALIZACAO TIMESTAMP,
-    CONSTRAINT FK_ALERTA_USER FOREIGN KEY (USUARIO_ID) REFERENCES USUARIOS(ID)
-);
-
--- Índices para performance
-CREATE INDEX IDX_USER_EMAIL ON USUARIOS(EMAIL);
-CREATE INDEX IDX_CHECKIN_USER_DATA ON CHECKINS_DIARIOS(USUARIO_ID, DATA_CHECKIN);
-CREATE INDEX IDX_ALERTA_USER ON ALERTAS_BURNOUT(USUARIO_ID);
+```json
+{
+  "ConnectionStrings": {
+    "SqlServerConnection": "Server=tcp:seu-servidor.database.windows.net,1433;Database=WorkWellDb;User ID=seu-usuario@seu-servidor;Password=sua-senha;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+  }
+}
 ```
+
+### Configuração do SQL Server Database
+
+O banco de dados será criado automaticamente via Entity Framework Core Migrations. Para executar as migrations:
+
+```bash
+# Navegar para o diretório da API
+cd WorkWell.API
+
+# Criar a migration inicial
+dotnet ef migrations add InitialMigration --project ../WorkWell.Infrastructure
+
+# Aplicar a migration no banco de dados
+dotnet ef database update --project ../WorkWell.Infrastructure
+```
+
+As tabelas serão criadas automaticamente com a seguinte estrutura:
+
+- **Empresas**: Armazena dados das empresas
+- **Departamentos**: Departamentos de cada empresa
+- **Usuarios**: Usuários do sistema
+- **CheckinsDiarios**: Check-ins diários de bem-estar
+- **MetricasSaude**: Métricas de saúde dos usuários
+- **AlertasBurnout**: Alertas de risco de burnout
+
+**Nota**: As tabelas agora usam nomenclatura PascalCase (padrão do SQL Server) ao invés de UPPERCASE (padrão do Oracle).
 
 ### Configuração do MongoDB
 
@@ -639,11 +578,359 @@ GET /health
   "version": "1.0.0",
   "services": {
     "api": "up",
-    "oracle": "up",
+    "sqlserver": "up",
     "mongodb": "up",
     "redis": "up"
   }
 }
+```
+
+## Deploy na Azure
+
+### Pré-requisitos Azure
+
+- Conta Azure ativa
+- Azure CLI instalado (`az --version` para verificar)
+- Subscription ID da Azure
+
+### Opção 1: Deploy via Azure App Service (Recomendado)
+
+#### Passo 1: Criar recursos na Azure
+
+```bash
+# Login na Azure
+az login
+
+# Definir variáveis
+RESOURCE_GROUP="rg-workwell"
+LOCATION="brazilsouth"
+APP_SERVICE_PLAN="plan-workwell"
+WEB_APP_NAME="workwell-api"
+SQL_SERVER_NAME="sql-workwell"
+SQL_DATABASE="WorkWellDb"
+SQL_ADMIN="sqladmin"
+SQL_PASSWORD="SuaSenhaSegura@123"
+
+# Criar resource group
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# Criar SQL Server
+az sql server create \
+  --name $SQL_SERVER_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --admin-user $SQL_ADMIN \
+  --admin-password $SQL_PASSWORD
+
+# Criar banco de dados SQL
+az sql db create \
+  --resource-group $RESOURCE_GROUP \
+  --server $SQL_SERVER_NAME \
+  --name $SQL_DATABASE \
+  --service-objective S0 \
+  --backup-storage-redundancy Local
+
+# Configurar firewall do SQL Server (permitir serviços Azure)
+az sql server firewall-rule create \
+  --resource-group $RESOURCE_GROUP \
+  --server $SQL_SERVER_NAME \
+  --name AllowAzureServices \
+  --start-ip-address 0.0.0.0 \
+  --end-ip-address 0.0.0.0
+
+# Criar App Service Plan
+az appservice plan create \
+  --name $APP_SERVICE_PLAN \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku B1 \
+  --is-linux
+
+# Criar Web App
+az webapp create \
+  --name $WEB_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --plan $APP_SERVICE_PLAN \
+  --runtime "DOTNET|8.0"
+```
+
+#### Passo 2: Configurar variáveis de ambiente
+
+```bash
+# Connection string do SQL Server
+SQL_CONNECTION_STRING="Server=tcp:$SQL_SERVER_NAME.database.windows.net,1433;Database=$SQL_DATABASE;User ID=$SQL_ADMIN;Password=$SQL_PASSWORD;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+
+# Configurar app settings
+az webapp config appsettings set \
+  --name $WEB_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --settings \
+    ConnectionStrings__SqlServerConnection="$SQL_CONNECTION_STRING" \
+    Jwt__SecretKey="sua-chave-jwt-secreta-de-pelo-menos-32-caracteres" \
+    Jwt__Issuer="WorkWellAPI" \
+    Jwt__Audience="WorkWellClient" \
+    Jwt__ExpirationHours="2" \
+    Gemini__ApiKey="SUA_CHAVE_GEMINI_API" \
+    ASPNETCORE_ENVIRONMENT="Production"
+```
+
+#### Passo 3: Deploy da aplicação
+
+```bash
+# Publicar aplicação localmente
+cd workwell-dotnet
+dotnet publish -c Release -o ./publish
+
+# Compactar arquivos
+cd publish
+zip -r ../deploy.zip .
+cd ..
+
+# Deploy para Azure
+az webapp deployment source config-zip \
+  --resource-group $RESOURCE_GROUP \
+  --name $WEB_APP_NAME \
+  --src deploy.zip
+```
+
+#### Passo 4: Aplicar migrations no banco de dados
+
+```bash
+# Opção 1: Gerar script SQL e executar manualmente
+cd WorkWell.API
+dotnet ef migrations script --project ../WorkWell.Infrastructure --output migration.sql
+
+# Conectar ao Azure SQL e executar o script
+sqlcmd -S $SQL_SERVER_NAME.database.windows.net -d $SQL_DATABASE -U $SQL_ADMIN -P $SQL_PASSWORD -i migration.sql
+
+# Opção 2: Executar migrations localmente apontando para Azure SQL
+export ConnectionStrings__SqlServerConnection="$SQL_CONNECTION_STRING"
+dotnet ef database update --project ../WorkWell.Infrastructure
+```
+
+### Opção 2: Deploy via Azure Container Instances
+
+#### Passo 1: Criar container registry
+
+```bash
+ACR_NAME="acrworkwell"
+
+# Criar Azure Container Registry
+az acr create \
+  --name $ACR_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --sku Basic \
+  --admin-enabled true
+
+# Login no registry
+az acr login --name $ACR_NAME
+```
+
+#### Passo 2: Build e push da imagem Docker
+
+```bash
+# Build da imagem
+docker build -t workwell-api:latest .
+
+# Tag da imagem
+docker tag workwell-api:latest $ACR_NAME.azurecr.io/workwell-api:latest
+
+# Push para ACR
+docker push $ACR_NAME.azurecr.io/workwell-api:latest
+```
+
+#### Passo 3: Deploy no Azure Container Instances
+
+```bash
+# Obter credenciais do ACR
+ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv)
+
+# Criar container instance
+az container create \
+  --resource-group $RESOURCE_GROUP \
+  --name workwell-container \
+  --image $ACR_NAME.azurecr.io/workwell-api:latest \
+  --registry-login-server $ACR_NAME.azurecr.io \
+  --registry-username $ACR_NAME \
+  --registry-password $ACR_PASSWORD \
+  --dns-name-label workwell-api \
+  --ports 80 443 \
+  --environment-variables \
+    ConnectionStrings__SqlServerConnection="$SQL_CONNECTION_STRING" \
+    Jwt__SecretKey="sua-chave-jwt-secreta" \
+    ASPNETCORE_ENVIRONMENT="Production"
+```
+
+### Opção 3: Deploy via GitHub Actions (CI/CD)
+
+Crie o arquivo `.github/workflows/azure-deploy.yml`:
+
+```yaml
+name: Deploy to Azure
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  AZURE_WEBAPP_NAME: workwell-api
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test --no-restore --verbosity normal
+
+    - name: Publish
+      run: dotnet publish -c Release -o ./publish
+
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./publish
+```
+
+### Configurar serviços adicionais na Azure
+
+#### Azure Cache for Redis
+
+```bash
+REDIS_NAME="redis-workwell"
+
+# Criar Azure Cache for Redis
+az redis create \
+  --name $REDIS_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION \
+  --sku Basic \
+  --vm-size c0
+
+# Obter connection string
+REDIS_KEY=$(az redis list-keys --name $REDIS_NAME --resource-group $RESOURCE_GROUP --query primaryKey -o tsv)
+REDIS_CONNECTION="$REDIS_NAME.redis.cache.windows.net:6380,password=$REDIS_KEY,ssl=True,abortConnect=False"
+
+# Adicionar ao App Service
+az webapp config appsettings set \
+  --name $WEB_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --settings ConnectionStrings__RedisConnection="$REDIS_CONNECTION"
+```
+
+#### Azure Cosmos DB (MongoDB API)
+
+```bash
+COSMOS_NAME="cosmos-workwell"
+
+# Criar Cosmos DB com MongoDB API
+az cosmosdb create \
+  --name $COSMOS_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --kind MongoDB \
+  --locations regionName=$LOCATION
+
+# Obter connection string
+MONGO_CONNECTION=$(az cosmosdb keys list \
+  --name $COSMOS_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --type connection-strings \
+  --query "connectionStrings[0].connectionString" -o tsv)
+
+# Adicionar ao App Service
+az webapp config appsettings set \
+  --name $WEB_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --settings \
+    ConnectionStrings__MongoDbConnection="$MONGO_CONNECTION" \
+    MongoDb__ConnectionString="$MONGO_CONNECTION" \
+    MongoDb__DatabaseName="WorkWellDb"
+```
+
+### Monitoramento e Logs na Azure
+
+#### Application Insights
+
+```bash
+APPINSIGHTS_NAME="appinsights-workwell"
+
+# Criar Application Insights
+az monitor app-insights component create \
+  --app $APPINSIGHTS_NAME \
+  --location $LOCATION \
+  --resource-group $RESOURCE_GROUP
+
+# Obter instrumentation key
+INSTRUMENTATION_KEY=$(az monitor app-insights component show \
+  --app $APPINSIGHTS_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query instrumentationKey -o tsv)
+
+# Configurar no App Service
+az webapp config appsettings set \
+  --name $WEB_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --settings APPINSIGHTS_INSTRUMENTATIONKEY="$INSTRUMENTATION_KEY"
+```
+
+#### Visualizar logs
+
+```bash
+# Stream de logs em tempo real
+az webapp log tail --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP
+
+# Download de logs
+az webapp log download --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP
+```
+
+### Verificar Deploy
+
+```bash
+# Obter URL da aplicação
+APP_URL=$(az webapp show --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP --query defaultHostName -o tsv)
+
+# Testar health check
+curl https://$APP_URL/health
+
+# Acessar Swagger
+echo "Swagger UI: https://$APP_URL/swagger"
+```
+
+### Rollback de Deploy
+
+```bash
+# Listar deployments
+az webapp deployment list --name $WEB_APP_NAME --resource-group $RESOURCE_GROUP
+
+# Fazer rollback para deployment anterior
+az webapp deployment slot swap \
+  --name $WEB_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --slot staging \
+  --target-slot production
+```
+
+### Limpeza de Recursos (opcional)
+
+```bash
+# Deletar resource group completo
+az group delete --name $RESOURCE_GROUP --yes --no-wait
 ```
 
 ## Uso
@@ -678,12 +965,21 @@ dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 dotnet test --filter "FullyQualifiedName~CheckinServiceTests"
 ```
 
-### Migrations (se usando EF Core Migrations)
+### Migrations do Entity Framework Core
 
 ```bash
+# Criar nova migration
 cd WorkWell.API
-dotnet ef migrations add InitialCreate --project ../WorkWell.Infrastructure
+dotnet ef migrations add NomeDaMigration --project ../WorkWell.Infrastructure
+
+# Aplicar migrations no banco de dados
 dotnet ef database update --project ../WorkWell.Infrastructure
+
+# Reverter última migration
+dotnet ef migrations remove --project ../WorkWell.Infrastructure
+
+# Gerar script SQL da migration (útil para Azure DevOps)
+dotnet ef migrations script --project ../WorkWell.Infrastructure --output migration.sql
 ```
 
 ## Exemplos de API
@@ -866,7 +1162,7 @@ Resposta:
   "version": "1.0.0",
   "services": {
     "api": "up",
-    "oracle": "up",
+    "sqlserver": "up",
     "mongodb": "up",
     "redis": "up"
   }
@@ -912,7 +1208,7 @@ A aplicação expõe endpoints de health check compatíveis com Kubernetes:
 
 - **Liveness**: `/health/live` - Verifica se a aplicação está rodando
 - **Readiness**: `/health/ready` - Verifica se está pronta para receber tráfego
-- **Detailed**: `/health` - Status detalhado de todas as dependências
+- **Detailed**: `/health` - Status detalhado de todas as dependências (SQL Server, MongoDB, Redis)
 
 ### Logging
 
@@ -972,17 +1268,20 @@ X-Correlation-Id: abc-123-def-456
 
 ### Problemas Comuns
 
-#### 1. Erro de conexão com Oracle
+#### 1. Erro de conexão com SQL Server
 
 ```bash
-# Verificar conexão
-sqlplus USER/PASSWORD@localhost:1521/XE
+# Verificar conexão local
+sqlcmd -S localhost -U sa -P YourPassword -Q "SELECT @@VERSION"
 
 # Verificar variáveis de ambiente
-echo $ConnectionStrings__OracleConnection
+echo $ConnectionStrings__SqlServerConnection
 
-# Verificar se o Oracle está rodando
-docker ps | grep oracle
+# Verificar se o SQL Server está rodando (Docker)
+docker ps | grep sqlserver
+
+# Testar conexão com Azure SQL
+sqlcmd -S seu-servidor.database.windows.net -U seu-usuario -P sua-senha -d WorkWellDb -Q "SELECT 1"
 ```
 
 #### 2. Erro de conexão com MongoDB

@@ -31,9 +31,9 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Database - Oracle
+// Database - SQL Server
 builder.Services.AddDbContext<WorkWellDbContext>(options =>
-    options.UseOracle(builder.Configuration.GetConnectionString("OracleConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("SqlServerConnection")));
 
 // MongoDB
 builder.Services.Configure<MongoDbSettings>(builder.Configuration.GetSection("MongoDb"));
@@ -129,7 +129,7 @@ builder.Services.AddCors(options =>
 
 // Health Checks
 builder.Services.AddHealthChecks()
-    .AddOracle(builder.Configuration.GetConnectionString("OracleConnection")!, name: "oracle-db", tags: new[] { "database", "oracle" })
+    .AddSqlServer(builder.Configuration.GetConnectionString("SqlServerConnection")!, name: "sqlserver-db", tags: new[] { "database", "sqlserver" })
     .AddMongoDb(builder.Configuration.GetConnectionString("MongoDbConnection")!, name: "mongodb", tags: new[] { "database", "mongodb" })
     .AddRedis(builder.Configuration.GetConnectionString("RedisConnection")!, name: "redis", tags: new[] { "cache", "redis" });
 
@@ -206,15 +206,13 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
         options.SwaggerEndpoint("/swagger/v1/swagger.json", "WorkWell API V1");
         options.SwaggerEndpoint("/swagger/v2/swagger.json", "WorkWell API V2");
     });
-}
+
 
 // Global Exception Handler
 app.UseExceptionHandler(appError =>

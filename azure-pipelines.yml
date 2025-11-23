@@ -1,4 +1,6 @@
-# azure-pipelines-ci.yml
+# azure-pipelines-workwell.yml
+# Pipeline de CI/CD para a aplicação WorkWell .NET Core no Azure DevOps
+
 trigger:
   branches:
     include:
@@ -9,10 +11,16 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
+  # Variáveis específicas do projeto WorkWell
+  projectApi: 'workwell-dotnet/WorkWell.Api/WorkWell.Api.csproj'
+  projectTests: 'workwell-dotnet/WorkWell.Tests/WorkWell.Tests.csproj'
   dockerImageName: 'workwell-api'
-  dockerRegistryServiceConnection: 'ACR-Connection'
   imageRepository: 'workwell-api'
-  containerRegistry: 'acrworkwell.azurecr.io'
+  # Estas variáveis devem ser configuradas como variáveis de pipeline no Azure DevOps
+  # dockerRegistryServiceConnection: 'ACR-Connection' 
+  # containerRegistry: 'acrworkwell.azurecr.io'
+  # azureSubscription: 'Azure-RM-Connection'
+  # webAppName: 'webapp-workwell-558424' # Deve ser o nome do App Service criado
 
 stages:
 # ------------------ CI ------------------
@@ -46,7 +54,8 @@ stages:
       displayName: 'Run Unit Tests'
       inputs:
         command: 'test'
-        projects: '**/Tests/*.csproj'
+        # Aponta para o projeto de testes específico
+        projects: '$(projectTests)'
         arguments: '--configuration $(buildConfiguration) --no-build --logger trx --collect:"XPlat Code Coverage"'
       continueOnError: true
 
@@ -64,21 +73,15 @@ stages:
       inputs:
         command: 'publish'
         publishWebProjects: false
-        projects: '**/Api.csproj'
+        # Aponta para o projeto da API específico
+        projects: '$(projectApi)'
         arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)/app --no-build'
         zipAfterPublish: false
-
-    - task: Docker@2
-      displayName: 'Build and Push Docker Image'
-      inputs:
-        command: 'buildAndPush'
-        repository: '$(imageRepository)'
-        containerRegistry: '$(dockerRegistryServiceConnection)'
-        Dockerfile: 'challenge-moto-connect/Dockerfile'
-        tags: |
-          $(Build.BuildId)
-          latest
-
+    
+    # A tarefa de Docker@2 foi removida, pois o deploy do script original usa ZIP para o App Service.
+    # Se o usuário quiser usar Docker, ele precisará de um Dockerfile e adaptar o deploy.
+    # Mantendo o padrão do script de deploy, o foco é no ZIP/Web Deploy.
+    
     - task: PublishBuildArtifacts@1
       displayName: 'Publish Build Artifacts'
       inputs:
@@ -99,10 +102,13 @@ stages:
       runOnce:
         deploy:
           steps:
-          - task: AzureWebAppContainer@1
-            displayName: 'Deploy Docker Image to Azure Web App'
+          # Usando a tarefa AzureWebApp@1 para deploy de pacotes ZIP/Web Deploy,
+          # que é mais comum para aplicações .NET Core sem Docker.
+          - task: AzureWebApp@1
+            displayName: 'Deploy Web App'
             inputs:
-              azureSubscription: 'Azure-RM-Connection'
-              appName: 'webapp-workwell-558424' 
-              containers: |
-                $(containerRegistry)/$(imageRepository):$(Build.BuildId)
+              azureSubscription: 'Azure-RM-Connection' # Variável de conexão de serviço
+              appName: 'webapp-workwell-558424' # Nome do App Service
+              package: '$(Build.ArtifactStagingDirectory)/app'
+              # runtimeStack: 'DOTNETCORE|8.0' # Opcional, pode ser configurado no App Service
+              # startUpCommand: 'dotnet WorkWell.Api.dll' # Opcional, se necessário

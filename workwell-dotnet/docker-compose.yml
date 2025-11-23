@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: workwell-db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "SuaSenhaSegura123!" # Altere para uma senha forte
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "SuaSenhaSegura123!", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: workwell-api
+    ports:
+      - "8080:8080"
+    environment:
+      # Conexão com o banco de dados local (o nome do serviço 'db' é o hostname)
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Initial Catalog=workwelldb;User ID=sa;Password=SuaSenhaSegura123!;TrustServerCertificate=True"
+      ASPNETCORE_ENVIRONMENT: "Development"
+    depends_on:
+      db:
+        condition: service_healthy
+    
+volumes:
+  sqlserver_data:

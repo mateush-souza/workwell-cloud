@@ -23,36 +23,8 @@ public class WorkWellDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configurar convenção de nomenclatura Oracle (maiúsculas)
-        foreach (var entity in modelBuilder.Model.GetEntityTypes())
-        {
-            // Tabelas
-            entity.SetTableName(entity.GetTableName()?.ToUpperInvariant());
-
-            // Colunas
-            foreach (var property in entity.GetProperties())
-            {
-                property.SetColumnName(property.GetColumnName()?.ToUpperInvariant());
-            }
-
-            // Chaves
-            foreach (var key in entity.GetKeys())
-            {
-                key.SetName(key.GetName()?.ToUpperInvariant());
-            }
-
-            // Índices
-            foreach (var index in entity.GetIndexes())
-            {
-                index.SetDatabaseName(index.GetDatabaseName()?.ToUpperInvariant());
-            }
-
-            // Foreign Keys
-            foreach (var foreignKey in entity.GetForeignKeys())
-            {
-                foreignKey.SetConstraintName(foreignKey.GetConstraintName()?.ToUpperInvariant());
-            }
-        }
+        // Convenção de nomenclatura SQL Server (PascalCase padrão do EF Core)
+        // Removida a conversão para uppercase que era específica do Oracle
 
         // Configurações específicas de entidades
         ConfigureEmpresa(modelBuilder);
